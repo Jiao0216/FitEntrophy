@@ -5,14 +5,22 @@ from __future__ import annotations
 import base64
 import mimetypes
 from pathlib import Path
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Literal, Tuple, Union
+
+ViewAngle = Literal["front", "side", "back"]
+VIEW_ORDER: tuple[ViewAngle, ...] = ("front", "side", "back")
+VIEW_LABELS: Dict[ViewAngle, str] = {
+    "front": "正面",
+    "side": "侧面",
+    "back": "背面",
+}
 
 # Project root / assets/mannequins/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MANNEQUIN_DIR = PROJECT_ROOT / "assets" / "mannequins"
 
 BODY_TYPE_SLUG: Dict[str, str] = {
-    "高挑": "tall",
+    "高挑": "slim",
     "标准": "average",
     "丰满": "curvy",
 }
@@ -53,7 +61,6 @@ PLACEHOLDER_URLS: Dict[tuple[str, str], str] = {
         "https://images.unsplash.com/photo-1496747611176-843222e1e57c"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    # 男：全身、内裤/极简打底、站姿（演示占位；正式图用 model-create）
     ("男", "高挑"): (
         "https://images.unsplash.com/photo-1681686372768-3fa296d2f3e9"
         "?auto=format&w=900&q=85&fit=crop"
@@ -68,15 +75,22 @@ PLACEHOLDER_URLS: Dict[tuple[str, str], str] = {
     ),
 }
 
+_VIEW_PROMPT_SUFFIX: Dict[ViewAngle, str] = {
+    "front": "facing camera directly, front view",
+    "side": "full body side profile, 90 degrees to camera, neutral standing pose",
+    "back": "full body back view, facing away from camera, neutral standing pose",
+}
+
 DisplaySource = Union[Path, str]
 
 
-def model_create_prompt(gender: str, body_type: str) -> str:
+def model_create_prompt(gender: str, body_type: str, view: ViewAngle = "front") -> str:
     """Full prompt for FASHN model-create (one-time asset generation)."""
 
     base = _FEMALE_BASE if gender == "女" else _MALE_BASE
     suffix = _BODY_SUFFIX_EN.get(body_type, _BODY_SUFFIX_EN["标准"])
-    return f"{base}, {suffix}"
+    angle = _VIEW_PROMPT_SUFFIX.get(view, _VIEW_PROMPT_SUFFIX["front"])
+    return f"{base}, {suffix}, {angle}"
 
 
 def all_presets() -> list[tuple[str, str]]:
@@ -89,6 +103,12 @@ def asset_basename(gender: str, body_type: str) -> str:
     return f"{g}_{b}"
 
 
+# Fallback map: body types without dedicated assets use the closest available
+_BODY_TYPE_FALLBACK: Dict[str, str] = {
+    "标准": "高挑",  # "average" falls back to "slim" assets
+}
+
+
 def asset_paths(gender: str, body_type: str) -> list[Path]:
     stem = asset_basename(gender, body_type)
     return [MANNEQUIN_DIR / f"{stem}{ext}" for ext in (".jpg", ".jpeg", ".png", ".webp")]
@@ -98,11 +118,25 @@ def resolve_asset_path(gender: str, body_type: str) -> Path | None:
     for p in asset_paths(gender, body_type):
         if p.is_file():
             return p
+    # Fallback to closest body type if no dedicated asset
+    fallback_bt = _BODY_TYPE_FALLBACK.get(body_type)
+    if fallback_bt:
+        for p in asset_paths(gender, fallback_bt):
+            if p.is_file():
+                return p
     return None
 
 
 def placeholder_url(gender: str, body_type: str) -> str:
-    return PLACEHOLDER_URLS.get((gender, body_type), PLACEHOLDER_URLS[("女", "标准")])
+    url = PLACEHOLDER_URLS.get((gender, body_type), "")
+    if url:
+        return url
+    # Fallback
+    fallback_bt = _BODY_TYPE_FALLBACK.get(body_type)
+    if fallback_bt:
+        return PLACEHOLDER_URLS.get((gender, fallback_bt), "")
+    # Ultimate fallback
+    return PLACEHOLDER_URLS.get(("女", "标准"), "")
 
 
 def is_local_asset(gender: str, body_type: str) -> bool:
@@ -115,13 +149,135 @@ def has_model_image(gender: str, body_type: str) -> bool:
     return is_local_asset(gender, body_type) or (gender, body_type) in PLACEHOLDER_URLS
 
 
+def resolve_view_asset_path(gender: str, body_type: str, view: ViewAngle) -> Path | None:
+    stem = asset_basename(gender, body_type)
+    if view == "front":
+        return resolve_asset_path(gender, body_type)
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        p = MANNEQUIN_DIR / f"{stem}_{view}{ext}"
+        if p.is_file():
+            return p
+    return None
+
+
+def resolve_view_source(gender: str, body_type: str, view: ViewAngle) -> DisplaySource:
+    """侧面/背面优先用同体型专属图；否则与正面同一张（同一模特）。"""
+
+    path = resolve_view_asset_path(gender, body_type, view)
+    if path:
+        return path
+    return resolve_view_source(gender, body_type, "front") if view != "front" else placeholder_url(
+        gender, body_type
+    )
+
+
+def has_dedicated_view_asset(gender: str, body_type: str, view: ViewAngle) -> bool:
+    return resolve_view_asset_path(gender, body_type, view) is not None
+
+
 def resolve_display_source(gender: str, body_type: str) -> DisplaySource:
     """Path for st.image, or HTTPS URL for placeholder preview."""
 
-    path = resolve_asset_path(gender, body_type)
-    if path:
-        return path
-    return placeholder_url(gender, body_type)
+    return resolve_view_source(gender, body_type, "front")
+
+
+def resolve_mannequin_views(
+    gender: str, body_type: str,
+) -> List[Tuple[str, DisplaySource, ViewAngle]]:
+    """(中文视角名, 图片源, 视角) 用于点击旋转查看器。"""
+
+    return [
+        (VIEW_LABELS[v], resolve_view_source(gender, body_type, v), v)
+        for v in VIEW_ORDER
+    ]
+
+
+def _to_data_url(source: DisplaySource) -> str:
+    if isinstance(source, Path):
+        return file_to_data_uri(source)
+    s = str(source)
+    if s.startswith(("http://", "https://", "data:")):
+        return s
+    return file_to_data_uri(Path(s))
+
+
+def _scan_360_frame_paths(stem: str) -> list[Path]:
+    frame_dir = MANNEQUIN_DIR / stem
+    if frame_dir.is_dir():
+        found = sorted(
+            list(frame_dir.glob("frame_*.jpg"))
+            + list(frame_dir.glob("frame_*.jpeg"))
+            + list(frame_dir.glob("frame_*.png"))
+        )
+        if len(found) >= 8:
+            return found
+    return sorted(
+        list(MANNEQUIN_DIR.glob(f"{stem}_frame_*.jpg"))
+        + list(MANNEQUIN_DIR.glob(f"{stem}_frame_*.jpeg"))
+        + list(MANNEQUIN_DIR.glob(f"{stem}_frame_*.png"))
+    )
+
+
+def resolve_mannequin_360_frames(
+    gender: str,
+    body_type: str,
+    *,
+    frame_count: int = 36,
+) -> dict[str, Any]:
+    """
+    拖动 360° 查看器数据。
+    - scrub：多帧图片逐帧切换（有 frame_XX 资源时最顺滑）
+    - simulate：单图 CSS 旋转（仅一张图时的折中）
+    """
+    stem = asset_basename(gender, body_type)
+    paths = _scan_360_frame_paths(stem)
+    if len(paths) >= 8:
+        frames = [
+            {"url": file_to_data_uri(p), "mirror": False, "view": "orbit", "styled": False}
+            for p in paths
+        ]
+        return {"mode": "scrub", "frames": frames}
+
+    front = _to_data_url(resolve_view_source(gender, body_type, "front"))
+    side = _to_data_url(resolve_view_source(gender, body_type, "side"))
+    back = _to_data_url(resolve_view_source(gender, body_type, "back"))
+    has_side = has_dedicated_view_asset(gender, body_type, "side")
+    has_back = has_dedicated_view_asset(gender, body_type, "back")
+    back_mirror = not has_back
+
+    third = max(1, frame_count // 3)
+    built: list[dict[str, Any]] = []
+    for i in range(frame_count):
+        if i < third:
+            built.append(
+                {
+                    "url": front,
+                    "view": "front",
+                    "mirror": False,
+                    "styled": False,
+                }
+            )
+        elif i < 2 * third:
+            built.append(
+                {
+                    "url": side,
+                    "view": "side",
+                    "mirror": False,
+                    # 无专属侧面图时：用 3D 倾斜模拟侧面，避免与正面完全相同
+                    "styled": not has_side,
+                }
+            )
+        else:
+            built.append(
+                {
+                    "url": back,
+                    "view": "back",
+                    "mirror": back_mirror,
+                    "styled": not has_back,
+                }
+            )
+
+    return {"mode": "scrub", "frames": built}
 
 
 def model_image_source_label(gender: str, body_type: str) -> str:
@@ -135,24 +291,17 @@ def model_image_source_label(gender: str, body_type: str) -> str:
 
 
 def infer_body_type(profile: Dict[str, Any] | None, *, gender: str = "女") -> str:
+    """BMI < 18.5 → 高挑; 18.5 ≤ BMI < 24 → 标准; BMI ≥ 24 → 丰满."""
     if not profile:
         return "标准"
     h = float(profile.get("height_cm") or 0)
     w_kg = float(profile.get("weight_kg") or 0)
-    bust = float(profile.get("bust_cm") or 0)
-    waist = float(profile.get("waist_cm") or 0)
-    hip = float(profile.get("hip_cm") or 0)
-
-    bmi = (w_kg / ((h / 100) ** 2)) if h > 0 and w_kg > 0 else 0.0
-    wh = (waist / hip) if waist > 0 and hip > 0 else 0.0
-
-    if h >= 172 and bmi and bmi < 22:
-        return "高挑"
-    if bmi >= 26 or (wh >= 0.88 and hip >= 95):
-        return "丰满"
-    if h >= 168 and bmi and bmi <= 21:
-        return "高挑"
-    if bust >= 95 and hip >= 100 and waist >= 78:
+    if h > 0 and w_kg > 0:
+        bmi = w_kg / ((h / 100) ** 2)
+        if bmi < 18.5:
+            return "高挑"
+        if bmi < 24:
+            return "标准"
         return "丰满"
     return "标准"
 
@@ -185,7 +334,7 @@ def generate_mannequin_asset(
     if out.is_file() and meta.is_file() and not force:
         return out
 
-    prompt = model_create_prompt(gender, body_type)
+    prompt = model_create_prompt(gender, body_type, "front")
     urls = run_model_create(
         prompt,
         aspect_ratio="3:4",
@@ -209,6 +358,53 @@ def generate_mannequin_asset(
         out.write_bytes(resp.content)
 
     meta.write_text("fashn model-create\n", encoding="utf-8")
+    return out
+
+
+def generate_mannequin_view_asset(
+    gender: str,
+    body_type: str,
+    view: ViewAngle,
+    *,
+    force: bool = False,
+) -> Path:
+    """Generate one angle: assets/mannequins/{stem}_{view}.jpg"""
+
+    from fitentropy.fashn_client import fashn_configured, run_model_create
+
+    if view == "front":
+        return generate_mannequin_asset(gender, body_type, force=force)
+    if not fashn_configured():
+        raise RuntimeError("未配置 FASHN_API_KEY，无法生成模特图。")
+
+    MANNEQUIN_DIR.mkdir(parents=True, exist_ok=True)
+    stem = asset_basename(gender, body_type)
+    out = MANNEQUIN_DIR / f"{stem}_{view}.jpg"
+    if out.is_file() and not force:
+        return out
+
+    prompt = model_create_prompt(gender, body_type, view)
+    urls = run_model_create(
+        prompt,
+        aspect_ratio="3:4",
+        generation_mode="balanced",
+        resolution="1k",
+        output_format="jpeg",
+        timeout=180.0,
+    )
+    if not urls:
+        raise RuntimeError(f"FASHN model-create 未返回图片 ({view})。")
+
+    url = urls[0]
+    if url.startswith("data:"):
+        _header, b64 = url.split(",", 1)
+        out.write_bytes(base64.b64decode(b64))
+    else:
+        import requests
+
+        resp = requests.get(url, timeout=120)
+        resp.raise_for_status()
+        out.write_bytes(resp.content)
     return out
 
 

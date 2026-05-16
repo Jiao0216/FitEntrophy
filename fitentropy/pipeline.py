@@ -10,7 +10,7 @@ from fitentropy import config
 from fitentropy.actionbook_client import collect_retail_manual_hints
 from fitentropy.brightdata_client import scrape_html
 from fitentropy.evermind_memory import recall_style_context, remember_outfit_turn
-from fitentropy.mock_data import mock_pipeline_result
+from fitentropy.mock_data import mock_pipeline_result, mock_pipeline_male_result
 from fitentropy.models import MissingItemOffer, OutfitPlan, PipelineResult, ProductLink
 from fitentropy.qwen_client import build_outfit_prompt, chat_completion_json
 from fitentropy.retail_parser import first_product_for_query
@@ -119,6 +119,8 @@ def run_pipeline(
     style_preferences: List[str] | None = None,
 ) -> PipelineResult:
     if demo_mode:
+        if gender == "男":
+            return mock_pipeline_male_result()
         return mock_pipeline_result()
 
     color_by_category = color_by_category or {}

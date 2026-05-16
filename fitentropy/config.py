@@ -84,6 +84,17 @@ def live_pipeline_ready() -> bool:
 
     return llm_configured()
 
+
+def use_demo_mode() -> bool:
+    """是否走演示数据。DEMO_MODE=auto 时无 LLM Key 则演示。"""
+
+    raw = os.getenv("DEMO_MODE", "auto").strip().lower()
+    if raw in ("1", "true", "yes", "demo"):
+        return True
+    if raw in ("0", "false", "no", "live"):
+        return False
+    return not llm_configured()
+
 BRIGHTDATA_API_KEY = os.getenv("BRIGHTDATA_API_KEY", "")
 BRIGHTDATA_ZONE = os.getenv("BRIGHTDATA_ZONE", "web_unlocker1")
 BRIGHTDATA_REQUEST_URL = "https://api.brightdata.com/request"

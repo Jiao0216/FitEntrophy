@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import html
+import json
+import re
+from pathlib import Path
+from typing import Union
 
 THEME_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -22,9 +26,8 @@ header[data-testid="stHeader"], [data-testid="stHeader"] {
   color: #e2e8f0;
 }
 .block-container { padding-top: 0.5rem; max-width: 1280px; }
-[data-testid="stSidebar"] {
-  background: #0c0a14 !important;
-  border-right: 1px solid rgba(139, 92, 246, 0.15) !important;
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] {
+  /* sidebar visible — contains demo toggle and key status */
 }
 .ft-nav {
   display: flex; align-items: center; justify-content: space-between;
@@ -55,36 +58,30 @@ header[data-testid="stHeader"], [data-testid="stHeader"] {
   max-width: 46rem; margin: 0 auto 1.25rem; line-height: 1.35;
 }
 .ft-hero-accent { color: #a78bfa; font-weight: 500; }
-.ft-rail-wrap { border-left: 2px solid rgba(139, 92, 246, 0.35); padding-left: 1rem; }
-.ft-rail-step { margin-bottom: 1.5rem; }
-.ft-rail-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #8b5cf6; }
-.ft-rail-title { font-size: 0.95rem; font-weight: 600; color: #f8fafc; }
-.ft-rail-sub { font-size: 0.72rem; color: #64748b; text-transform: uppercase; }
-.ft-rail-step.active .ft-rail-title { color: #c4b5fd; }
 .ft-section {
   background: rgba(15, 12, 24, 0.75); border: 1px solid rgba(139, 92, 246, 0.15);
   border-radius: 16px; padding: 1.35rem 1.5rem; margin-bottom: 1.25rem;
 }
 .ft-section-head { font-size: 1rem; font-weight: 600; color: #f8fafc; margin: 0 0 1rem; }
 .ft-section-head em { color: #8b5cf6; font-style: normal; }
-.ft-outfit-body { padding: 0.85rem 0 0; }
-.ft-outfit-num { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #8b5cf6; }
-.ft-outfit-title { font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin: 0.25rem 0; }
-.ft-tag {
-  display: inline-block; font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 6px;
-  background: rgba(139, 92, 246, 0.25); color: #ddd6fe; margin-bottom: 0.4rem;
+.ft-soft-note {
+  font-size: 0.88rem; color: #cbd5e1; margin: 0 0 1rem; line-height: 1.5;
 }
-.ft-outfit-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.5; }
-.ft-missing-title {
-  font-size: 0.72rem; font-weight: 600; color: #64748b;
-  text-transform: uppercase; letter-spacing: 0.08em; margin: 0.75rem 0 0.35rem;
+.ft-footer {
+  text-align: center; padding: 1.5rem 0 2rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
+  font-size: 0.82rem; color: #64748b;
 }
-.ft-missing-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.4rem 0; border-top: 1px solid rgba(139, 92, 246, 0.1);
-  font-size: 0.8rem; color: #cbd5e1;
+/* ── Section badge header ─────────────────────────────────────────────────── */
+.ft-section-badge-head { font-size: 1rem; font-weight: 500; color: #f8fafc; margin: 0 0 1rem; }
+.ft-section-badge {
+  display: inline-block; width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid rgba(139,92,246,0.35); color: #a78bfa;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+  line-height: 30px; text-align: center;
+  margin-right: 0.55rem; vertical-align: -7px;
 }
-.ft-missing-item a { color: #a78bfa; text-decoration: none; font-weight: 600; font-size: 0.75rem; }
+/* ── Hero model image ─────────────────────────────────────────────────────── */
 .ft-hero-model {
   max-width: 320px; margin: 1rem auto 0.5rem; aspect-ratio: 3/4;
   border-radius: 16px;
@@ -99,6 +96,7 @@ header[data-testid="stHeader"], [data-testid="stHeader"] {
   font-family: 'JetBrains Mono', monospace; white-space: nowrap;
 }
 .ft-hero-model-caption { text-align: center; font-size: 0.78rem; color: #64748b; margin: 0 auto 1.75rem; }
+/* ── Look cards ────────────────────────────────────────────────────────────── */
 .ft-look-card {
   background: rgba(20,16,32,0.7); border: 1px solid rgba(139,92,246,0.25);
   border-radius: 14px; padding: 1rem 0.95rem; display: flex; flex-direction: column; height: 100%;
@@ -141,6 +139,25 @@ header[data-testid="stHeader"], [data-testid="stHeader"] {
   font-size: 0.75rem; cursor: pointer; font-family: inherit;
 }
 .ft-look-detail-btn:hover { background: rgba(139,92,246,0.15); }
+/* ── Missing items ─────────────────────────────────────────────────────────── */
+.ft-missing-title {
+  font-size: 0.72rem; font-weight: 600; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.08em; margin: 0.75rem 0 0.35rem;
+}
+.ft-missing-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.4rem 0; border-top: 1px solid rgba(139, 92, 246, 0.1);
+  font-size: 0.8rem; color: #cbd5e1;
+}
+.ft-missing-item a { color: #a78bfa; text-decoration: none; font-weight: 600; font-size: 0.75rem; }
+/* ── Step rail ─────────────────────────────────────────────────────────────── */
+.ft-rail-wrap { border-left: 2px solid rgba(139, 92, 246, 0.35); padding-left: 1rem; }
+.ft-rail-step { margin-bottom: 1.5rem; }
+.ft-rail-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #8b5cf6; }
+.ft-rail-title { font-size: 0.95rem; font-weight: 600; color: #f8fafc; }
+.ft-rail-sub { font-size: 0.72rem; color: #64748b; text-transform: uppercase; }
+.ft-rail-step.active .ft-rail-title { color: #c4b5fd; }
+/* ── Form submit button ────────────────────────────────────────────────────── */
 .stFormSubmitButton > button {
   width: 100% !important; padding: 0.75rem !important; border-radius: 12px !important;
   background: linear-gradient(135deg, #6d28d9, #8b5cf6, #a78bfa) !important;
@@ -151,15 +168,6 @@ label { color: #e2e8f0 !important; }
 [data-testid="stWidgetLabel"] p {
   color: #94a3b8 !important; font-size: 0.72rem !important;
   letter-spacing: 0.04em !important; text-transform: uppercase !important;
-}
-/* ── Section badge header ─────────────────────────────────────────────────── */
-.ft-section-badge-head { font-size: 1rem; font-weight: 500; color: #f8fafc; margin: 0 0 1rem; }
-.ft-section-badge {
-  display: inline-block; width: 30px; height: 30px; border-radius: 8px;
-  border: 1px solid rgba(139,92,246,0.35); color: #a78bfa;
-  font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
-  line-height: 30px; text-align: center;
-  margin-right: 0.55rem; vertical-align: -7px;
 }
 /* ── Tabs as icon cards ───────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] { gap: 0.55rem !important; background: transparent !important; }
@@ -195,7 +203,7 @@ label { color: #e2e8f0 !important; }
   background: rgba(15, 12, 24, 0.9) !important;
   border-color: rgba(139, 92, 246, 0.25) !important; border-radius: 10px !important;
 }
-motion[data-testid="stImage"] img {
+div[data-testid="stImage"] img {
   border-radius: 16px 16px 0 0 !important; border: 1px solid rgba(139, 92, 246, 0.2) !important;
 }
 .ft-profile-preview [data-testid="stImage"] {
@@ -209,7 +217,7 @@ motion[data-testid="stImage"] img {
   display: block !important;
   border-radius: 12px !important;
 }
-""".replace("motion[data-testid", "div[data-testid")
+"""
 
 BODY_TYPE_EN = {"高挑": ("Tall / Slim", "↗"), "标准": ("Standard", "◎"), "丰满": ("Fuller", "●")}
 GENDER_EN = {"男": "Male", "女": "Female"}
@@ -268,8 +276,13 @@ def render_step_rail(active_step: int) -> None:
     st.markdown(f'<div class="ft-rail-wrap">{"".join(inner)}</div>', unsafe_allow_html=True)
 
 
-def render_footer(*, confidence: float, wardrobe_count: int, outfit_count: int) -> None:
-    pass
+def render_footer() -> None:
+    import streamlit as st
+
+    st.markdown(
+        '<footer class="ft-footer">FitEntropy · 让衣橱少一点随机</footer>',
+        unsafe_allow_html=True,
+    )
 
 
 def accessory_thumbs_html(offers: list) -> str:
@@ -325,3 +338,296 @@ def missing_items_html(offers: list, missing_labels: list) -> str:
     if not rows:
         rows.append('<div class="ft-missing-item"><span>—</span></div>')
     return '<div class="ft-missing-title">Missing Items</div>' + "".join(rows)
+
+
+# ── Interactive image components ─────────────────────────────────────────────
+
+ImageSource = Union[Path, str]
+
+
+def _image_url(src: ImageSource) -> str:
+    from fitentropy.mannequin_assets import file_to_data_uri
+
+    if isinstance(src, Path):
+        return file_to_data_uri(src)
+    s = str(src)
+    if s.startswith(("http://", "https://", "data:")):
+        return s
+    return file_to_data_uri(Path(s))
+
+
+def render_image_360(
+    viewer_data: dict,
+    *,
+    width: int = 220,
+    height: int | None = None,
+    key: str = "ft360",
+) -> None:
+    """Drag horizontally to scrub 360° mannequin views."""
+    import streamlit.components.v1 as components
+
+    if height is None:
+        height = int(width * 1.4) + 36
+
+    card_id = re.sub(r"[^a-zA-Z0-9_-]", "", key) or "ft360"
+    data_json = json.dumps(viewer_data, ensure_ascii=False)
+
+    doc = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ background: transparent; overflow: hidden; font-family: system-ui, sans-serif; }}
+.viewport {{
+  width: {width}px;
+  height: {height}px;
+  margin: 0 auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  text-align: center;
+}}
+.viewport.dragging {{ cursor: grabbing; }}
+.stage {{
+  width: 100%;
+  height: {height - 32}px;
+  perspective: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}}
+.stage .photo-wrap {{
+  max-width: 92%;
+  max-height: 100%;
+  transform-style: preserve-3d;
+}}
+.stage img {{
+  width: 100%;
+  height: 100%;
+  max-height: {height - 52}px;
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 0.1s ease-out, object-position 0.1s ease-out;
+  transform-origin: center center;
+}}
+.meta {{
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}}
+.deg {{
+  display: inline-block;
+  margin-top: 6px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #ddd6fe;
+  background: rgba(139, 92, 246, 0.25);
+}}
+</style></head>
+<body>
+<div class="viewport" id="vp-{card_id}">
+  <div class="stage"><div class="photo-wrap"><img id="img-{card_id}" alt="" draggable="false" /></div></div>
+  <div class="deg" id="deg-{card_id}">0°</div>
+  <div class="meta">← 拖动旋转 · 360° →</div>
+</div>
+<script>
+(function() {{
+  const data = {data_json};
+  const img = document.getElementById("img-{card_id}");
+  const deg = document.getElementById("deg-{card_id}");
+  const vp = document.getElementById("vp-{card_id}");
+  if (!img || !deg || !vp) return;
+
+  let idx = 0;
+  let dragging = false;
+  let lastX = 0;
+  const pxPerStep = 5;
+
+  const viewNames = {{ front: "正面", side: "侧面", back: "背面", orbit: "" }};
+
+  function applyFrame(f) {{
+    img.src = f.url;
+    img.style.objectPosition = "top center";
+    let tf = "rotateY(0deg)";
+    if (f.view === "side") {{
+      if (f.styled) {{
+        tf = "rotateY(62deg) scale(1.06)";
+        img.style.objectPosition = "78% top";
+      }} else {{
+        tf = "rotateY(0deg)";
+      }}
+    }} else if (f.view === "back") {{
+      if (f.styled || f.mirror) {{
+        tf = "rotateY(0deg) scaleX(-1)";
+      }}
+    }}
+    img.style.transform = tf;
+  }}
+
+  function show(i) {{
+    const frames = data.frames || [];
+    if (!frames.length) return;
+    idx = ((i % frames.length) + frames.length) % frames.length;
+    const f = frames[idx];
+    applyFrame(f);
+    const angle = Math.round((idx / frames.length) * 360);
+    const vn = viewNames[f.view] || "";
+    deg.textContent = vn ? angle + "° · " + vn : angle + "°";
+  }}
+
+  show(0);
+
+  function onDown(x) {{
+    dragging = true;
+    lastX = x;
+    vp.classList.add("dragging");
+  }}
+  function onMove(x) {{
+    if (!dragging) return;
+    const dx = x - lastX;
+    if (Math.abs(dx) < pxPerStep) return;
+    const steps = Math.trunc(dx / pxPerStep);
+    lastX = x;
+    show(idx - steps);
+  }}
+  function onUp() {{
+    dragging = false;
+    vp.classList.remove("dragging");
+  }}
+
+  vp.addEventListener("mousedown", (e) => {{ onDown(e.clientX); e.preventDefault(); }});
+  window.addEventListener("mousemove", (e) => onMove(e.clientX));
+  window.addEventListener("mouseup", onUp);
+  vp.addEventListener("touchstart", (e) => {{
+    if (e.touches.length) onDown(e.touches[0].clientX);
+  }}, {{ passive: true }});
+  vp.addEventListener("touchmove", (e) => {{
+    if (e.touches.length) onMove(e.touches[0].clientX);
+  }}, {{ passive: true }});
+  vp.addEventListener("touchend", onUp);
+}})();
+</script>
+</body></html>"""
+
+    components.html(doc, height=height + 8, scrolling=False)
+
+
+def render_image_3d(
+    src: ImageSource,
+    *,
+    width: int | str = 200,
+    height: int | None = None,
+    key: str = "ft3d",
+) -> None:
+    """Interactive perspective card — photos appear 3D with mouse tilt."""
+    import streamlit.components.v1 as components
+
+    img_url = _image_url(src)
+    safe_src = html.escape(img_url, quote=True)
+    card_id = re.sub(r"[^a-zA-Z0-9_-]", "", key) or "ft3d"
+
+    if height is None:
+        height = int(width * 1.35) + 28 if isinstance(width, int) else 400
+
+    w_style = f"{width}px" if isinstance(width, int) else str(width)
+    cid = json.dumps(card_id)
+
+    doc = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ background: transparent; overflow: hidden; }}
+.scene {{
+  width: {w_style};
+  height: {height}px;
+  margin: 0 auto;
+  perspective: 1000px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}}
+.card {{
+  position: relative;
+  width: 94%;
+  height: 96%;
+  transform-style: preserve-3d;
+  transition: transform 0.14s ease-out;
+  transform: rotateY(-12deg) rotateX(4deg);
+  border-radius: 14px;
+  box-shadow:
+    -16px 20px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(139, 92, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}}
+.card img {{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 14px;
+  display: block;
+}}
+.shine {{
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    transparent 42%,
+    rgba(139, 92, 246, 0.15) 100%
+  );
+  pointer-events: none;
+}}
+.glow {{
+  position: absolute;
+  bottom: -6%;
+  left: 8%;
+  width: 84%;
+  height: 14%;
+  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.45), transparent 72%);
+  filter: blur(6px);
+  pointer-events: none;
+}}
+</style></head>
+<body>
+<div class="scene" id="scene-{card_id}">
+  <div class="card" id="{card_id}">
+    <img src="{safe_src}" alt="" />
+    <div class="shine"></div>
+    <div class="glow"></div>
+  </div>
+</div>
+<script>
+(function() {{
+  const card = document.getElementById({cid});
+  const scene = document.getElementById("scene-{card_id}");
+  if (!card || !scene) return;
+  const base = {{ ry: -12, rx: 4 }};
+  const apply = (x, y) => {{
+    card.style.transform =
+      "rotateY(" + (base.ry + x * 30) + "deg) rotateX(" + (base.rx - y * 24) +
+      "deg) scale3d(1.04, 1.04, 1.04)";
+  }};
+  const reset = () => {{
+    card.style.transform =
+      "rotateY(" + base.ry + "deg) rotateX(" + base.rx + "deg) scale3d(1, 1, 1)";
+  }};
+  scene.addEventListener("mousemove", (e) => {{
+    const r = scene.getBoundingClientRect();
+    apply((e.clientX - r.left) / r.width - 0.5, (e.clientY - r.top) / r.height - 0.5);
+  }});
+  scene.addEventListener("mouseleave", reset);
+  scene.addEventListener("touchmove", (e) => {{
+    if (!e.touches.length) return;
+    const r = scene.getBoundingClientRect();
+    const t = e.touches[0];
+    apply((t.clientX - r.left) / r.width - 0.5, (t.clientY - r.top) / r.height - 0.5);
+  }}, {{ passive: true }});
+  scene.addEventListener("touchend", reset);
+}})();
+</script>
+</body></html>"""
+
+    components.html(doc, height=height + 8, scrolling=False)
