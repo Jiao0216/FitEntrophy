@@ -150,6 +150,16 @@ GENDER_OPTIONS = ("男", "女")
 OCCASION_OPTIONS = ("日常", "通勤", "约会", "派对")
 BUDGET_OPTIONS = ("$30以下", "$30-60", "$60-100")
 
+
+def budget_yuan_to_tier(yuan: int) -> str:
+    """¥ → 现有 BUDGET_OPTIONS 之一，按汇率 7 估算"""
+    usd = yuan / 7
+    if usd < 30:
+        return "$30以下"
+    if usd <= 60:
+        return "$30-60"
+    return "$60-100"
+
 # 风格偏好（多选 → LLM styling_signal）
 STYLE_PREFERENCE_OPTIONS: tuple[str, ...] = (
     "极简",
@@ -164,7 +174,7 @@ STYLE_PREFERENCE_OPTIONS: tuple[str, ...] = (
     "美式休闲",
 )
 
-# 已有单品：按衣橱分区（UI 四分栏，提交时压平传给模型）
+# 已有单品：按衣橱分区（UI Tab 选择，提交时压平传给模型）
 OWNED_WARDROBE: dict[str, tuple[str, ...]] = {
     "上衣": (
         "T恤",
@@ -191,9 +201,22 @@ OWNED_WARDROBE: dict[str, tuple[str, ...]] = {
         "乐福鞋",
         "凉鞋",
     ),
+    "配饰": (
+        "帽子",
+        "包袋",
+        "墨镜",
+        "围巾",
+        "腰带",
+    ),
+    "外套": (
+        "夹克",
+        "风衣",
+        "羽绒服",
+        "毛呢大衣",
+    ),
 }
 
-OWNED_WARDROBE_ORDER: tuple[str, ...] = ("上衣", "下装", "连衣裙", "鞋子")
+OWNED_WARDROBE_ORDER: tuple[str, ...] = ("上衣", "下装", "鞋子", "配饰", "外套", "连衣裙")
 
 # 衣橱主色 / 偏好（用于搭配与零售搜索关键词）
 COLOR_PREFERENCE_OPTIONS: tuple[str, ...] = (
