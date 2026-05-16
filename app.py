@@ -34,10 +34,10 @@ SLOGAN = "Dress for the date. Win the date."
 
 # Color hex map for display
 _COLOR_HEX = {
-    "黑": "#000000", "白": "#f8fafc", "灰": "#6b7280", "米白": "#f5f0e8",
-    "驼色": "#c4a882", "牛仔蓝": "#4a7eb5", "藏蓝": "#1e3a8a",
-    "军绿": "#556b2f", "酒红": "#8b1a1a", "粉色": "#f9a8d4",
-    "紫色": "#8b5cf6", "棕色": "#92400e", "银色": "#c0c0c0", "金色": "#d4a017",
+    "Black": "#000000", "White": "#f8fafc", "Gray": "#6b7280", "Off-White": "#f5f0e8",
+    "Camel": "#c4a882", "Denim Blue": "#4a7eb5", "Navy": "#1e3a8a",
+    "Olive": "#556b2f", "Burgundy": "#8b1a1a", "Pink": "#f9a8d4",
+    "Purple": "#8b5cf6", "Brown": "#92400e", "Silver": "#c0c0c0", "Gold": "#d4a017",
 }
 
 st.set_page_config(
@@ -55,7 +55,7 @@ render_hero(SLOGAN)
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    with st.expander("赛前清单 · 额度与部署", expanded=False):
+    with st.expander("Hackathon Checklist · Credits & Deploy", expanded=False):
         st.markdown(
             """
 - [Bright Data](https://get.brightdata.com/aibuilders10)
@@ -65,11 +65,11 @@ with st.sidebar:
             """
         )
 
-    st.markdown("### 运行")
+    st.markdown("### Run")
     demo_mode = st.toggle(
-        "演示模式（Mock）",
+        "Demo Mode (Mock)",
         value=False,
-        help="开启后使用 Mock 数据；关闭后调用真实 LLM 生成搭配",
+        help="When on, uses mock data; when off, calls real LLM for outfit generation",
     )
     st.divider()
     st.caption("Keys")
@@ -78,41 +78,41 @@ with st.sidebar:
         f"LLM · {config.llm_provider_label()} / {config.llm_model_label()}: "
         f"{'✓' if _llm_ok else '—'}"
     )
-    st.caption(f"Bright Data: {'✓' if config.brightdata_configured() else '—（可选）'}")
-    st.caption(f"FASHN 试穿: {'✓' if fashn_configured() else '—'}")
+    st.caption(f"Bright Data: {'✓' if config.brightdata_configured() else '— (optional)'}")
+    st.caption(f"FASHN Try-On: {'✓' if fashn_configured() else '—'}")
     if not demo_mode and not config.live_pipeline_ready():
-        st.warning("关闭演示模式需要 OPENAI_API_KEY 或 QWEN_API_KEY。")
+        st.warning("Disabling demo mode requires OPENAI_API_KEY or QWEN_API_KEY.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP: form — 性别 + 体型 + 风格偏好 + 场合 + 颜色 + 预算
+# STEP: form — Gender + Body + Style + Occasion + Color + Budget
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state["ft_step"] == "form":
 
-    # ── 01 基础信息 ──
+    # ── 01 Basic Info ──
     st.markdown(
         '<div class="ft-section"><p class="ft-section-badge-head">'
-        '<span class="ft-section-badge">01</span>基础信息 · Basic Info</p>',
+        '<span class="ft-section-badge">01</span>Basic Info</p>',
         unsafe_allow_html=True,
     )
     g1, g2, g3 = st.columns(3)
     with g1:
         gender = st.radio(
-            "性别 · GENDER",
+            "GENDER",
             config.GENDER_OPTIONS,
             horizontal=True,
             key="ft_gender",
-            format_func=lambda x: f"{'⚲' if x == '男' else '♀'} {x}",
+            format_func=lambda x: f"{'⚲' if x == 'Male' else '♀'} {x}",
         )
     with g2:
         st.number_input(
-            "身高 · HEIGHT (cm)",
+            "HEIGHT (cm)",
             min_value=140, max_value=210, value=170, step=1,
             key="ft_height_cm",
         )
     with g3:
         st.number_input(
-            "体重 · WEIGHT (kg)",
+            "WEIGHT (kg)",
             min_value=35, max_value=150, value=60, step=1,
             key="ft_weight_kg",
         )
@@ -126,61 +126,61 @@ if st.session_state["ft_step"] == "form":
     st.session_state["ft_body_type"] = _profile_b
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── 02 偏好设置 ──
+    # ── 02 Preferences ──
     with st.form("entropy_form"):
         st.markdown(
             '<div class="ft-section"><p class="ft-section-badge-head">'
-            '<span class="ft-section-badge">02</span>偏好设置 · Preferences</p>',
+            '<span class="ft-section-badge">02</span>Preferences</p>',
             unsafe_allow_html=True,
         )
 
         # Category tabs — select which types to include in recommendation
         st.markdown(
             '<div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.35rem;'
-            'letter-spacing:0.04em;">想买什么 · CATEGORIES</div>',
+            'letter-spacing:0.04em;">CATEGORIES</div>',
             unsafe_allow_html=True,
         )
         _cat_cols = st.columns(6)
         _cat_options = [
-            ("上衣", "👕", "Tops"),
-            ("下装", "👖", "Bottoms"),
-            ("连衣裙", "👗", "Dresses"),
-            ("鞋子", "👟", "Shoes"),
-            ("配饰", "👜", "Accessories"),
-            ("外套", "🧥", "Outerwear"),
+            ("Tops", "👕"),
+            ("Bottoms", "👖"),
+            ("Dresses", "👗"),
+            ("Shoes", "👟"),
+            ("Accessories", "👜"),
+            ("Outerwear", "🧥"),
         ]
         selected_cats = []
-        for ci, (cat_cn, icon, cat_en) in enumerate(_cat_options):
+        for ci, (cat_label, icon) in enumerate(_cat_options):
             with _cat_cols[ci]:
                 if st.checkbox(
-                    f"{icon} {cat_cn}",
+                    f"{icon} {cat_label}",
                     value=False,
-                    key=f"ft_cat_{cat_cn}",
+                    key=f"ft_cat_{cat_label}",
                     label_visibility="visible",
                 ):
-                    selected_cats.append(cat_cn)
+                    selected_cats.append(cat_label)
 
         st.markdown('<div style="margin-top:0.75rem;"></div>', unsafe_allow_html=True)
 
         # Style tags
         style_prefs = st.multiselect(
-            "风格标签 · Style",
+            "Style",
             options=config.STYLE_PREFERENCE_OPTIONS,
             key="ft_styles",
-            placeholder="极简、街头休闲、quiet luxury…",
+            placeholder="Minimalist, Street Casual, Quiet Luxury…",
         )
 
         # Occasion + Budget
         c1, c2 = st.columns(2)
         with c1:
             occasion = st.selectbox(
-                "Occasion · 场合",
+                "Occasion",
                 config.OCCASION_OPTIONS,
-                format_func=lambda x: f"{OCCASION_EN.get(x, x)} · {x}",
+                format_func=lambda x: x,
             )
         with c2:
             st.number_input(
-                "Budget · 预算 (¥)",
+                "Budget (¥)",
                 min_value=100, max_value=10000, value=1500, step=100,
                 key="ft_budget_yuan",
             )
@@ -188,13 +188,13 @@ if st.session_state["ft_step"] == "form":
         # Colors
         st.markdown(
             '<div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.35rem;'
-            'letter-spacing:0.04em;">颜色偏好 · COLORS</div>',
+            'letter-spacing:0.04em;">COLORS</div>',
             unsafe_allow_html=True,
         )
         selected_colors = st.multiselect(
-            "颜色", options=list(config.COLOR_PREFERENCE_OPTIONS),
+            "Colors", options=list(config.COLOR_PREFERENCE_OPTIONS),
             default=[], label_visibility="collapsed",
-            placeholder="选择偏好颜色…", key="ft_colors",
+            placeholder="Select preferred colors…", key="ft_colors",
         )
         # Color circles display
         if selected_colors:
@@ -221,26 +221,26 @@ if st.session_state["ft_step"] == "form":
 
     if submitted:
         if not demo_mode and not config.live_pipeline_ready():
-            st.error("请配置 OPENAI_API_KEY 或 QWEN_API_KEY，或开启演示模式。")
+            st.error("Please configure OPENAI_API_KEY or QWEN_API_KEY, or enable demo mode.")
         else:
-            with st.spinner("AI 搭配生成中…"):
+            with st.spinner("AI outfit generating…"):
                 try:
                     _mg = gender
-                    _mb = st.session_state.get("ft_body_type", "标准")
+                    _mb = st.session_state.get("ft_body_type", "Standard")
                     st.session_state["last_mannequin_gender"] = _mg
                     st.session_state["last_mannequin_body"] = _mb
                     st.session_state["ft_last_occasion"] = occasion
 
                     # Build style signal: body type + style prefs + categories + color + budget
-                    style_signal = [f"体型:{_mb}"]
+                    style_signal = [f"Body:{_mb}"]
                     if style_prefs:
-                        style_signal.extend([f"风格:{s}" for s in style_prefs])
+                        style_signal.extend([f"Style:{s}" for s in style_prefs])
                     if selected_cats:
-                        style_signal.append(f"想买:{'、'.join(selected_cats)}")
+                        style_signal.append(f"Want:{', '.join(selected_cats)}")
                     if selected_colors:
-                        style_signal.append(f"偏好色:{'、'.join(selected_colors)}")
+                        style_signal.append(f"Colors:{', '.join(selected_colors)}")
                     budget_yuan = st.session_state.get("ft_budget_yuan", 1500)
-                    style_signal.append(f"预算上限:{budget_yuan}¥")
+                    style_signal.append(f"Budget:{budget_yuan}¥")
 
                     # Color map for LLM: all categories share same color prefs
                     color_by_cat: dict[str, list[str]] = {}
@@ -270,7 +270,7 @@ if st.session_state["ft_step"] == "form":
                     if demo_mode:
                         # Demo mode: use mock try-on results (gender-aware)
                         from fitentropy.mock_data import mock_tryon_results, mock_male_tryon_results
-                        if _mg == "男":
+                        if _mg == "Male":
                             st.session_state["fashn_tryon_by_outfit"] = mock_male_tryon_results()
                         else:
                             st.session_state["fashn_tryon_by_outfit"] = mock_tryon_results()
@@ -278,7 +278,7 @@ if st.session_state["ft_step"] == "form":
                         fashn_configured()
                         and outfits_list
                     ):
-                        with st.spinner("FASHN 虚拟试穿中…"):
+                        with st.spinner("FASHN virtual try-on…"):
                             try:
                                 st.session_state["fashn_tryon_by_outfit"] = auto_tryon_for_outfits(
                                     _mg, _mb, outfits_list
@@ -286,7 +286,7 @@ if st.session_state["ft_step"] == "form":
                             except Exception as exc:
                                 st.session_state["fashn_tryon_error"] = str(exc)
                 except Exception as exc:
-                    st.error(f"生成失败: {exc}")
+                    st.error(f"Generation failed: {exc}")
                     st.stop()
 
             st.session_state["last_result"] = payload
@@ -295,12 +295,12 @@ if st.session_state["ft_step"] == "form":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP: result — 试穿效果 + Shop Now
+# STEP: result — Try-On + Shop Now
 # ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state["ft_step"] == "result":
     _back_col, _label_col = st.columns([0.25, 0.75])
     with _back_col:
-        if st.button("← 返回修改", key="back_to_form"):
+        if st.button("← Back to Edit", key="back_to_form"):
             st.session_state["ft_step"] = "form"
             st.rerun()
     with _label_col:
@@ -318,14 +318,14 @@ elif st.session_state["ft_step"] == "result":
     outfits = data.get("outfits") or []
     notes = data.get("notes") or ""
 
-    _mg = st.session_state.get("last_mannequin_gender", "女")
-    _mb = st.session_state.get("last_mannequin_body", "标准")
+    _mg = st.session_state.get("last_mannequin_gender", "Female")
+    _mb = st.session_state.get("last_mannequin_body", "Standard")
     _tryon_by_outfit = st.session_state.get("fashn_tryon_by_outfit") or {}
     _base_img = resolve_display_source(_mg, _mb)
 
     st.markdown(
         '<p class="ft-section-badge-head"><span class="ft-section-badge">03</span>'
-        '搭配结果 · Your Outfits</p>',
+        'Your Outfits</p>',
         unsafe_allow_html=True,
     )
 
@@ -334,15 +334,15 @@ elif st.session_state["ft_step"] == "result":
     _user_occ = st.session_state.get("ft_last_occasion", "")
     _user_colors = st.session_state.get("ft_colors", [])
     _user_cats = [
-        cat_cn for cat_cn, _icon, _cat_en in [
-            ("上衣", "👕", "Tops"), ("下装", "👖", "Bottoms"), ("连衣裙", "👗", "Dresses"),
-            ("鞋子", "👟", "Shoes"), ("配饰", "👜", "Accessories"), ("外套", "🧥", "Outerwear"),
+        cat_label for cat_label, _icon in [
+            ("Tops", "👕"), ("Bottoms", "👖"), ("Dresses", "👗"),
+            ("Shoes", "👟"), ("Accessories", "👜"), ("Outerwear", "🧥"),
         ]
-        if st.session_state.get(f"ft_cat_{cat_cn}", False)
+        if st.session_state.get(f"ft_cat_{cat_label}", False)
     ]
     _tags = []
     if _user_occ:
-        _tags.append(f"{OCCASION_EN.get(_user_occ, _user_occ)} · {_user_occ}")
+        _tags.append(f"{_user_occ}")
     for s in _user_styles:
         _tags.append(s)
     for c in _user_colors:
@@ -364,10 +364,10 @@ elif st.session_state["ft_step"] == "result":
     if notes:
         st.info(notes)
     if st.session_state.get("fashn_tryon_error"):
-        st.warning(f"FASHN：{st.session_state['fashn_tryon_error']}")
+        st.warning(f"FASHN: {st.session_state['fashn_tryon_error']}")
 
     if not outfits:
-        st.info("暂无搭配，请返回修改")
+        st.info("No outfits yet, go back and try again")
     else:
         # ── Hero model image (Look 01) ─────────────────────────────────────
         _look1_tryon = _tryon_by_outfit.get(1)
@@ -397,14 +397,14 @@ elif st.session_state["ft_step"] == "result":
             )
             st.markdown(
                 '<div style="text-align:center;font-size:0.78rem;color:#64748b;">'
-                'FASHN 虚拟试穿 · 默认展示 Look 01</div>',
+                'Virtual Try-On · Look 01 by default</div>',
                 unsafe_allow_html=True,
             )
 
             # Generate try-on button if no try-on yet
             if (not _look1_tryon or not (isinstance(_look1_tryon, dict) and _look1_tryon.get("tryon_url"))) and fashn_configured() and outfits:
-                if st.button("✨ 生成试穿效果", key="gen_tryon_btn", use_container_width=True):
-                    with st.spinner("正在生成试穿效果…"):
+                if st.button("✨ Generate Try-On", key="gen_tryon_btn", use_container_width=True):
+                    with st.spinner("Generating try-on…"):
                         try:
                             st.session_state["fashn_tryon_by_outfit"] = auto_tryon_for_outfits(
                                 _mg, _mb, outfits
@@ -419,7 +419,7 @@ elif st.session_state["ft_step"] == "result":
         with _pr:
             st.markdown(
                 '<div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.35rem;'
-                'letter-spacing:0.04em;">搭配单品 · ITEMS</div>',
+                'letter-spacing:0.04em;">ITEMS</div>',
                 unsafe_allow_html=True,
             )
             for off in _look1_offers:
@@ -445,7 +445,7 @@ elif st.session_state["ft_step"] == "result":
                         )
                         if _purl.startswith("http"):
                             st.link_button(
-                                "购买 →",
+                                "Buy →",
                                 _purl,
                                 key=f"hero-buy-{_pname[:10]}",
                             )

@@ -219,10 +219,10 @@ div[data-testid="stImage"] img {
 }
 """
 
-BODY_TYPE_EN = {"高挑": ("Tall / Slim", "↗"), "标准": ("Standard", "◎"), "丰满": ("Fuller", "●")}
-GENDER_EN = {"男": "Male", "女": "Female"}
-WARDROBE_ICON = {"上衣": "👕", "下装": "👖", "连衣裙": "👗", "鞋子": "👟", "配饰": "👜", "外套": "🧥"}
-OCCASION_EN = {"日常": "Daily", "通勤": "Work", "约会": "Date", "派对": "Party"}
+BODY_TYPE_EN = {"Tall": ("Tall / Slim", "↗"), "Standard": ("Standard", "◎"), "Curvy": ("Fuller", "●")}
+GENDER_EN = {"Male": "Male", "Female": "Female"}
+WARDROBE_ICON = {"Tops": "👕", "Bottoms": "👖", "Dresses": "👗", "Shoes": "👟", "Accessories": "👜", "Outerwear": "🧥"}
+OCCASION_EN = {"Daily": "Daily", "Work": "Work", "Date": "Date", "Party": "Party"}
 
 
 def inject_theme() -> None:
@@ -264,7 +264,7 @@ def render_hero(slogan: str) -> None:
 def render_step_rail(active_step: int) -> None:
     import streamlit as st
 
-    steps = [(1, "你是谁", "Who are you"), (2, "你有什么", "What do you have"), (3, "结果展示", "Your Outfits")]
+    steps = [(1, "Who are you", "Profile"), (2, "What do you have", "Wardrobe"), (3, "Your Outfits", "Results")]
     inner = []
     for num, zh, en in steps:
         cls = "ft-rail-step active" if num == active_step else "ft-rail-step"
@@ -280,7 +280,7 @@ def render_footer() -> None:
     import streamlit as st
 
     st.markdown(
-        '<footer class="ft-footer">FitEntropy · 让衣橱少一点随机</footer>',
+        '<footer class="ft-footer">FitEntropy · Less Random, More Style</footer>',
         unsafe_allow_html=True,
     )
 
@@ -430,7 +430,7 @@ body {{ background: transparent; overflow: hidden; font-family: system-ui, sans-
 <div class="viewport" id="vp-{card_id}">
   <div class="stage"><div class="photo-wrap"><img id="img-{card_id}" alt="" draggable="false" /></div></div>
   <div class="deg" id="deg-{card_id}">0°</div>
-  <div class="meta">← 拖动旋转 · 360° →</div>
+  <div class="meta">← Drag to rotate · 360° →</div>
 </div>
 <script>
 (function() {{
@@ -445,7 +445,7 @@ body {{ background: transparent; overflow: hidden; font-family: system-ui, sans-
   let lastX = 0;
   const pxPerStep = 5;
 
-  const viewNames = {{ front: "正面", side: "侧面", back: "背面", orbit: "" }};
+  const viewNames = {{ front: "Front", side: "Side", back: "Back", orbit: "" }};
 
   function applyFrame(f) {{
     img.src = f.url;

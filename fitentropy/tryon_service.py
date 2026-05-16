@@ -23,7 +23,7 @@ DEFAULT_PRODUCT_URL = (
     "?v1=529348923"
 )
 
-# 无 Bright Data 时：Zara 页面多为 SPA，用已知商品元数据 + 可访问的服装平铺图
+# Without Bright Data: Zara pages are mostly SPA, use known product metadata + accessible flat-lay images
 _FALLBACK_BY_PRODUCT_ID: Dict[str, dict[str, str]] = {
     "6318049": {
         "brand": "Zara",
@@ -97,16 +97,16 @@ def garment_image_for_outfit(outfit: dict) -> str:
 
 # ── Category inference for FASHN API ──
 _TOPS_KEYWORDS = (
-    "上衣", "衬衫", "T恤", "卫衣", "针织衫", "西装", "外套", "夹克",
-    "大衣", "风衣", "帽衫", "毛衣", "top", "shirt", "jacket",
+    "Tops", "shirt", "t-shirt", "hoodie", "knitwear", "blazer", "outerwear", "jacket",
+    "coat", "trench", "hoodie", "sweater", "top", "shirt", "jacket",
     "coat", "blazer", "hoodie", "sweater", "cardigan",
 )
 _BOTTOMS_KEYWORDS = (
-    "下装", "裤", "牛仔裤", "休闲裤", "半身裙", "裙", "短裤",
+    "Bottoms", "pant", "jean", "trouser", "skirt", "short",
     "bottom", "pant", "jean", "trouser", "skirt", "short",
 )
 _DRESS_KEYWORDS = (
-    "连衣裙", "吊带裙", "长裙", "短裙", "dress", "gown",
+    "Dresses", "dress", "gown",
 )
 
 
@@ -125,9 +125,9 @@ def _infer_fashn_category(label: str) -> str:
 _TRYON_CATEGORIES = ("tops", "bottoms", "one-pieces")
 # Keywords that map to each tryon category
 _TRYON_PRIORITY_LABELS = (
-    "上衣", "衬衫", "T恤", "卫衣", "针织衫", "西装", "外套", "夹克",
-    "大衣", "风衣", "帽衫", "毛衣", "下装", "裤", "牛仔裤", "休闲裤",
-    "半身裙", "短裤", "连衣裙", "吊带裙",
+    "Tops", "shirt", "t-shirt", "hoodie", "knitwear", "blazer", "outerwear", "jacket",
+    "coat", "trench", "hoodie", "sweater", "Bottoms", "pant", "jean", "trouser",
+    "skirt", "short", "Dresses", "dress",
 )
 
 
@@ -504,7 +504,7 @@ def product_from_page_url(product_url: str) -> ProductLink:
 
     product_url = (product_url or "").strip()
     if not product_url.startswith("http"):
-        raise ValueError("请输入有效的商品链接")
+        raise ValueError("Please enter a valid product URL")
 
     brand = _brand_from_url(product_url)
 
@@ -537,7 +537,8 @@ def product_from_page_url(product_url: str) -> ProductLink:
         return fb
 
     raise RuntimeError(
-        "无法从商品页获取图片。请配置 BRIGHTDATA_API_KEY，或稍后重试。"
+        "Could not extract a usable garment image from the product page. "
+        "Please configure BRIGHTDATA_API_KEY, or try again later."
     )
 
 
@@ -554,13 +555,13 @@ def tryon_product_url(
     """
 
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN，无法生成试穿图")
+        raise RuntimeError("FASHN not configured, cannot generate try-on image")
 
     prod = product_from_page_url(product_url)
     prod_dict = prod.model_dump()
     garment = resolve_garment_image_url(prod_dict) or (prod.image_url or "").strip()
     if not garment.startswith("http"):
-        raise RuntimeError("未能从商品页提取到可用的服装图片")
+        raise RuntimeError("Could not extract a usable garment image from the product page")
 
     model_img, _ = model_image_for_tryon(gender, body_type)
     urls = run_tryon_v16(
@@ -571,7 +572,7 @@ def tryon_product_url(
         timeout=180.0,
     )
     if not urls:
-        raise RuntimeError("试穿生成失败，请稍后再试")
+        raise RuntimeError("Try-on generation failed, please try again later")
 
     fb = _fallback_product(product_url)
     return {

@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Literal, Tuple, Union
 ViewAngle = Literal["front", "side", "back"]
 VIEW_ORDER: tuple[ViewAngle, ...] = ("front", "side", "back")
 VIEW_LABELS: Dict[ViewAngle, str] = {
-    "front": "正面",
-    "side": "侧面",
-    "back": "背面",
+    "front": "Front",
+    "side": "Side",
+    "back": "Back",
 }
 
 # Project root / assets/mannequins/
@@ -20,17 +20,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MANNEQUIN_DIR = PROJECT_ROOT / "assets" / "mannequins"
 
 BODY_TYPE_SLUG: Dict[str, str] = {
-    "高挑": "slim",
-    "标准": "average",
-    "丰满": "curvy",
+    "Tall": "slim",
+    "Standard": "average",
+    "Curvy": "curvy",
 }
 BODY_TYPE_LABELS: tuple[str, ...] = tuple(BODY_TYPE_SLUG.keys())
-GENDER_SLUG: Dict[str, str] = {"女": "female", "男": "male"}
+GENDER_SLUG: Dict[str, str] = {"Female": "female", "Male": "male"}
 
 _BODY_SUFFIX_EN: Dict[str, str] = {
-    "高挑": "tall and slim body type",
-    "标准": "average body type",
-    "丰满": "curvy and full body type",
+    "Tall": "tall and slim body type",
+    "Standard": "average body type",
+    "Curvy": "curvy and full body type",
 }
 
 _FEMALE_BASE = (
@@ -49,27 +49,27 @@ _MALE_BASE = (
 # 无 FASHN Key 时用于界面预览 / 试穿 model_image（公网 Unsplash，全身打底风）
 # 有 Key 后可用 scripts/generate_mannequin_assets.py 生成正式图并覆盖本地 jpg
 PLACEHOLDER_URLS: Dict[tuple[str, str], str] = {
-    ("女", "高挑"): (
+    ("Female", "Tall"): (
         "https://images.unsplash.com/photo-1529139574466-a303027c1d8b"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    ("女", "标准"): (
+    ("Female", "Standard"): (
         "https://images.unsplash.com/photo-1596660780693-00f011aa7231"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    ("女", "丰满"): (
+    ("Female", "Curvy"): (
         "https://images.unsplash.com/photo-1496747611176-843222e1e57c"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    ("男", "高挑"): (
+    ("Male", "Tall"): (
         "https://images.unsplash.com/photo-1681686372768-3fa296d2f3e9"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    ("男", "标准"): (
+    ("Male", "Standard"): (
         "https://images.unsplash.com/photo-1749806865395-fdc6febf58fd"
         "?auto=format&w=900&q=85&fit=crop"
     ),
-    ("男", "丰满"): (
+    ("Male", "Curvy"): (
         "https://images.unsplash.com/photo-1674499266935-c1a522ec1973"
         "?auto=format&w=900&q=85&fit=crop"
     ),
@@ -87,8 +87,8 @@ DisplaySource = Union[Path, str]
 def model_create_prompt(gender: str, body_type: str, view: ViewAngle = "front") -> str:
     """Full prompt for FASHN model-create (one-time asset generation)."""
 
-    base = _FEMALE_BASE if gender == "女" else _MALE_BASE
-    suffix = _BODY_SUFFIX_EN.get(body_type, _BODY_SUFFIX_EN["标准"])
+    base = _FEMALE_BASE if gender == "Female" else _MALE_BASE
+    suffix = _BODY_SUFFIX_EN.get(body_type, _BODY_SUFFIX_EN["Standard"])
     angle = _VIEW_PROMPT_SUFFIX.get(view, _VIEW_PROMPT_SUFFIX["front"])
     return f"{base}, {suffix}, {angle}"
 
@@ -105,7 +105,7 @@ def asset_basename(gender: str, body_type: str) -> str:
 
 # Fallback map: body types without dedicated assets use the closest available
 _BODY_TYPE_FALLBACK: Dict[str, str] = {
-    "标准": "高挑",  # "average" falls back to "slim" assets
+    "Standard": "Tall",  # "average" falls back to "slim" assets
 }
 
 
@@ -136,7 +136,7 @@ def placeholder_url(gender: str, body_type: str) -> str:
     if fallback_bt:
         return PLACEHOLDER_URLS.get((gender, fallback_bt), "")
     # Ultimate fallback
-    return PLACEHOLDER_URLS.get(("女", "标准"), "")
+    return PLACEHOLDER_URLS.get(("Female", "Standard"), "")
 
 
 def is_local_asset(gender: str, body_type: str) -> bool:
@@ -144,7 +144,7 @@ def is_local_asset(gender: str, body_type: str) -> bool:
 
 
 def has_model_image(gender: str, body_type: str) -> bool:
-    """本地 jpg 或内置占位 URL 任一可用即为 True（无需 FASHN Key）。"""
+    """Local jpg or built-in placeholder URL either works (no FASHN Key needed)."""
 
     return is_local_asset(gender, body_type) or (gender, body_type) in PLACEHOLDER_URLS
 
@@ -161,7 +161,7 @@ def resolve_view_asset_path(gender: str, body_type: str, view: ViewAngle) -> Pat
 
 
 def resolve_view_source(gender: str, body_type: str, view: ViewAngle) -> DisplaySource:
-    """侧面/背面优先用同体型专属图；否则与正面同一张（同一模特）。"""
+    """Side/back views prefer dedicated assets; otherwise reuse front (same model)."""
 
     path = resolve_view_asset_path(gender, body_type, view)
     if path:
@@ -184,7 +184,7 @@ def resolve_display_source(gender: str, body_type: str) -> DisplaySource:
 def resolve_mannequin_views(
     gender: str, body_type: str,
 ) -> List[Tuple[str, DisplaySource, ViewAngle]]:
-    """(中文视角名, 图片源, 视角) 用于点击旋转查看器。"""
+    """(view name, image source, view angle) for click-to-rotate viewer."""
 
     return [
         (VIEW_LABELS[v], resolve_view_source(gender, body_type, v), v)
@@ -224,10 +224,9 @@ def resolve_mannequin_360_frames(
     *,
     frame_count: int = 36,
 ) -> dict[str, Any]:
-    """
-    拖动 360° 查看器数据。
-    - scrub：多帧图片逐帧切换（有 frame_XX 资源时最顺滑）
-    - simulate：单图 CSS 旋转（仅一张图时的折中）
+    """Drag-to-rotate 360° viewer data.
+    - scrub: multi-frame image switching (smoothest with frame_XX resources)
+    - simulate: single-image CSS rotation (compromise with only one image)
     """
     stem = asset_basename(gender, body_type)
     paths = _scan_360_frame_paths(stem)
@@ -263,7 +262,7 @@ def resolve_mannequin_360_frames(
                     "url": side,
                     "view": "side",
                     "mirror": False,
-                    # 无专属侧面图时：用 3D 倾斜模拟侧面，避免与正面完全相同
+                    # No dedicated side view: use 3D tilt to simulate, avoid being identical to front
                     "styled": not has_side,
                 }
             )
@@ -286,24 +285,24 @@ def model_image_source_label(gender: str, body_type: str) -> str:
     if meta.is_file():
         return f"FASHN model-create · {stem}.jpg"
     if is_local_asset(gender, body_type):
-        return f"本地占位图 · {stem}.jpg（可用 FASHN 重新生成）"
-    return "在线占位图（点击「FASHN 生成模特」保存到本地）"
+        return f"Local placeholder · {stem}.jpg (can regenerate with FASHN)"
+    return "Online placeholder (click 'Generate Model' to save locally)"
 
 
 def infer_body_type(profile: Dict[str, Any] | None, *, gender: str = "女") -> str:
-    """BMI < 18.5 → 高挑; 18.5 ≤ BMI < 24 → 标准; BMI ≥ 24 → 丰满."""
+    """BMI < 18.5 → Tall; 18.5 ≤ BMI < 24 → Standard; BMI ≥ 24 → Curvy."""
     if not profile:
-        return "标准"
+        return "Standard"
     h = float(profile.get("height_cm") or 0)
     w_kg = float(profile.get("weight_kg") or 0)
     if h > 0 and w_kg > 0:
         bmi = w_kg / ((h / 100) ** 2)
         if bmi < 18.5:
-            return "高挑"
+            return "Tall"
         if bmi < 24:
-            return "标准"
-        return "丰满"
-    return "标准"
+            return "Standard"
+        return "Curvy"
+    return "Standard"
 
 
 def file_to_data_uri(path: Path) -> str:
@@ -326,7 +325,7 @@ def generate_mannequin_asset(
     from fitentropy.fashn_client import fashn_configured, run_model_create
 
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN_API_KEY，无法生成模特图。")
+        raise RuntimeError("FASHN_API_KEY not configured, cannot generate model image.")
 
     MANNEQUIN_DIR.mkdir(parents=True, exist_ok=True)
     out = MANNEQUIN_DIR / f"{asset_basename(gender, body_type)}.jpg"
@@ -344,7 +343,7 @@ def generate_mannequin_asset(
         timeout=180.0,
     )
     if not urls:
-        raise RuntimeError("FASHN model-create 未返回图片。")
+        raise RuntimeError("FASHN model-create returned no image.")
 
     url = urls[0]
     if url.startswith("data:"):
@@ -375,7 +374,7 @@ def generate_mannequin_view_asset(
     if view == "front":
         return generate_mannequin_asset(gender, body_type, force=force)
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN_API_KEY，无法生成模特图。")
+        raise RuntimeError("FASHN_API_KEY not configured, cannot generate model image.")
 
     MANNEQUIN_DIR.mkdir(parents=True, exist_ok=True)
     stem = asset_basename(gender, body_type)
@@ -393,7 +392,7 @@ def generate_mannequin_view_asset(
         timeout=180.0,
     )
     if not urls:
-        raise RuntimeError(f"FASHN model-create 未返回图片 ({view})。")
+        raise RuntimeError(f"FASHN model-create returned no image ({view}).")
 
     url = urls[0]
     if url.startswith("data:"):
@@ -431,6 +430,6 @@ def model_image_for_tryon(gender: str, body_type: str) -> Tuple[str, str]:
     return placeholder_url(gender, body_type), model_image_source_label(gender, body_type)
 
 
-# 兼容旧调用
+# Backward compatible alias
 def has_asset(gender: str, body_type: str) -> bool:
     return has_model_image(gender, body_type)

@@ -37,22 +37,22 @@ def normalize_body_profile(
 
 
 def body_profile_line(profile: Dict[str, Any] | None) -> str:
-    """Short Chinese line for logs or secondary prompts."""
+    """Short line for logs or secondary prompts."""
 
     if not profile:
         return ""
     parts: list[str] = []
     if h := profile.get("height_cm"):
-        parts.append(f"身高约{h}cm")
+        parts.append(f"Height ~{h}cm")
     if w := profile.get("weight_kg"):
-        parts.append(f"体重约{w}kg")
+        parts.append(f"Weight ~{w}kg")
     if b := profile.get("bust_cm"):
-        parts.append(f"胸围约{b}cm")
+        parts.append(f"Bust ~{b}cm")
     if wst := profile.get("waist_cm"):
-        parts.append(f"腰围约{wst}cm")
+        parts.append(f"Waist ~{wst}cm")
     if hip := profile.get("hip_cm"):
-        parts.append(f"臀围约{hip}cm")
-    return "；".join(parts) if parts else ""
+        parts.append(f"Hip ~{hip}cm")
+    return "; ".join(parts) if parts else ""
 
 
 def slim_llm_signals(
@@ -130,7 +130,7 @@ def mannequin_svg_html(profile: Dict[str, Any] | None) -> str:
     <line x1="60" y1="168" x2="48" y2="{168 + leg_len:.1f}" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
     <line x1="60" y1="168" x2="72" y2="{168 + leg_len:.1f}" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
     <text x="60" y="252" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui,sans-serif">
-      示意假人 · 非扫描
+      Body Outline · Not a Scan
     </text>
   </svg>
 </div>

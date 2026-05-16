@@ -119,7 +119,7 @@ def run_pipeline(
     style_preferences: List[str] | None = None,
 ) -> PipelineResult:
     if demo_mode:
-        if gender == "男":
+        if gender == "Male":
             return mock_pipeline_male_result()
         return mock_pipeline_result()
 
@@ -131,7 +131,7 @@ def run_pipeline(
     trends = fetch_trend_keywords()
     bd_note = ""
     if not config.brightdata_configured():
-        bd_note = "未配置 Bright Data：趋势与商品链接使用内置关键词与搜索直达（无实时爬取）。"
+        bd_note = "Bright Data not configured: trends and product links use built-in keywords and search redirects (no live scraping)."
     messages = build_outfit_prompt(
         gender=gender,
         occasion=occasion,
@@ -152,7 +152,7 @@ def run_pipeline(
             trend_keywords=trends,
             outfits=outfits,
             demo_mode=False,
-            notes="模型返回的搭配不足 3 套，请重试或检查 LLM / 模型名配置。",
+            notes="Model returned fewer than 3 outfits. Please retry or check LLM / model name config.",
             memory_snippet=memory_snippet,
             actionbook_hints=actionbook_hints,
         )
