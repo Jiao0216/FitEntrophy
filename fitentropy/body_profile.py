@@ -118,7 +118,7 @@ def mannequin_svg_html(profile: Dict[str, Any] | None) -> str:
 
     return f"""
 <div style="display:flex;justify-content:center;padding:0.5rem 0;">
-  <svg viewBox="0 0 120 260" width="200" height="420" role="img" aria-label="示意假人"
+  <svg viewBox="0 0 120 260" width="200" height="420" role="img" aria-label="Body outline mannequin"
        style="max-width:min(220px,100%);height:auto;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.35));">
     <rect width="120" height="260" rx="16" fill="#111827"/>
     <circle cx="60" cy="28" r="14" fill="#94a3b8" stroke="#5eead4" stroke-width="1.2"/>

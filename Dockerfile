@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY fitentropy/ ./fitentropy/
 COPY assets/ ./assets/
+COPY .streamlit/ ./.streamlit/
 
 # Zeabur injects PORT (default 8080)
 ENV PORT=8080

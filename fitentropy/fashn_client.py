@@ -39,7 +39,7 @@ def submit_tryon_v16(
     num_samples: int = 1,
 ) -> str:
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN_API_KEY，无法调用虚拟试穿。")
+        raise RuntimeError("FASHN_API_KEY is not configured; virtual try-on is unavailable.")
 
     inputs: Dict[str, Any] = {
         "model_image": model_image,
@@ -88,7 +88,7 @@ def submit_tryon_max(
 ) -> str:
     """Submit Try-On Max request — supports shoes, hats, jewelry, bags."""
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN_API_KEY，无法调用虚拟试穿。")
+        raise RuntimeError("FASHN_API_KEY is not configured; virtual try-on is unavailable.")
 
     inputs: Dict[str, Any] = {
         "model_image": model_image,
@@ -208,7 +208,7 @@ def submit_model_create(
     num_images: int = 1,
 ) -> str:
     if not fashn_configured():
-        raise RuntimeError("未配置 FASHN_API_KEY，无法调用 model-create。")
+        raise RuntimeError("FASHN_API_KEY is not configured; model-create is unavailable.")
 
     inputs: Dict[str, Any] = {
         "prompt": prompt,

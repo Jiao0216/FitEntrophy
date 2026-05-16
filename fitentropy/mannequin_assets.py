@@ -289,7 +289,7 @@ def model_image_source_label(gender: str, body_type: str) -> str:
     return "Online placeholder (click 'Generate Model' to save locally)"
 
 
-def infer_body_type(profile: Dict[str, Any] | None, *, gender: str = "女") -> str:
+def infer_body_type(profile: Dict[str, Any] | None, *, gender: str = "Female") -> str:
     """BMI < 18.5 → Tall; 18.5 ≤ BMI < 24 → Standard; BMI ≥ 24 → Curvy."""
     if not profile:
         return "Standard"

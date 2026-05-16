@@ -55,20 +55,27 @@ render_hero(SLOGAN)
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    with st.expander("Hackathon Checklist · Credits & Deploy", expanded=False):
+    with st.expander("Agent Forge · Stack & Credits", expanded=False):
         st.markdown(
             """
+**Deploy:** [Zeabur BUILDER0516](https://zeabur.com/events?code=BUILDER0516) · submit by 4:30 PM
+
+**Credits**
 - [Bright Data](https://get.brightdata.com/aibuilders10)
 - [Qwen Cloud](https://tinyurl.com/qwencloudcredits)
 - [Qoder](https://tinyurl.com/qodercredits)
-- Zeabur 当天：[BUILDER0516](https://zeabur.com/events?code=BUILDER0516)
+- [Nosana](https://www.theaibuilders.dev/nosanacredits)
+- [Butterbase FUN0516](https://dashboard.butterbase.ai/billing) (optional)
+- [TokenRouter](https://tokenrouter.io/) (optional)
+
+**Submit:** [agentforgesubmit](https://tinyurl.com/agentforgesubmit)
             """
         )
 
     st.markdown("### Run")
     demo_mode = st.toggle(
         "Demo Mode (Mock)",
-        value=False,
+        value=config.use_demo_mode(),
         help="When on, uses mock data; when off, calls real LLM for outfit generation",
     )
     st.divider()
@@ -80,6 +87,8 @@ with st.sidebar:
     )
     st.caption(f"Bright Data: {'✓' if config.brightdata_configured() else '— (optional)'}")
     st.caption(f"FASHN Try-On: {'✓' if fashn_configured() else '—'}")
+    st.caption(f"EverOS: {'✓' if config.EVEROS_API_KEY else '— (optional)'}")
+    st.caption(f"AgentField: outfit mesh via `@outfit_agent.reasoner`")
     if not demo_mode and not config.live_pipeline_ready():
         st.warning("Disabling demo mode requires OPENAI_API_KEY or QWEN_API_KEY.")
 
