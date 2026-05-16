@@ -1,0 +1,7 @@
+# FitEntropy — Python 3.11
+streamlit>=1.28.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+agentfield>=0.1.84
+everos>=0.4.0
