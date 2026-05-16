@@ -160,7 +160,7 @@ def first_product_for_query(
             image_url=first.image_url,
         )
 
-  # Fallback: prominent product link
+    # Fallback: prominent product link
     link = re.search(r'href=["\']([^"\']+/product[^"\']+)["\']', html, re.I)
     image_url = _og_image(html) or ""
     if link:

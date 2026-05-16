@@ -16,11 +16,10 @@ from fitentropy import config
 from fitentropy.fashn_client import fashn_configured
 from fitentropy.mannequin_assets import (
     BODY_TYPE_LABELS,
-    generate_mannequin_asset,
-    model_image_for_tryon,
     model_image_source_label,
     resolve_display_source,
 )
+from fitentropy.tryon_service import auto_tryon_for_outfits
 from fitentropy.outfit_agent import reduce_entropy
 from fitentropy.ui_theme import (
     BODY_TYPE_EN,
@@ -48,7 +47,7 @@ st.set_page_config(
 )
 
 inject_theme()
-render_nav("dashboard")
+render_nav()
 render_hero(SLOGAN)
 
 with st.sidebar:
@@ -118,52 +117,35 @@ with _main_col:
             key="ft_body_type",
             format_func=lambda x: f"{BODY_TYPE_EN.get(x, (x, ''))[0]} · {x}",
         )
-    st.caption(model_image_source_label(gender, body_type))
-if fashn_configured():
-    _gen_col1, _gen_col2 = st.columns(2)
-    with _gen_col1:
-        if st.button(
-            "FASHN 生成当前模特",
-            key="btn_fashn_gen_current",
-            use_container_width=True,
-            help="调用 FASHN model-create，约 1–2 分钟",
-        ):
-            st.session_state["fashn_gen_target"] = (gender, body_type)
-    with _gen_col2:
-        if st.button(
-            "生成全部 6 套",
-            key="btn_fashn_gen_all",
-            use_container_width=True,
-        ):
-            st.session_state["fashn_gen_target"] = ("__all__", "")
-else:
-    st.caption("配置 FASHN_API_KEY 后可一键生成 AI 模特图。")
-if st.session_state.get("fashn_gen_error"):
-    st.error(st.session_state["fashn_gen_error"])
-if st.session_state.get("fashn_gen_ok"):
-    st.success(st.session_state["fashn_gen_ok"])
+    _profile_g = st.session_state.get("ft_gender", gender)
+    _profile_b = st.session_state.get("ft_body_type", body_type)
+    st.caption(model_image_source_label(_profile_g, _profile_b))
 
-_gen_target = st.session_state.pop("fashn_gen_target", None)
-if _gen_target and fashn_configured():
-    st.session_state.pop("fashn_gen_error", None)
-    st.session_state.pop("fashn_gen_ok", None)
-    try:
-        with st.spinner("FASHN model-create 生成中（约 1–2 分钟/张）…"):
-            if _gen_target[0] == "__all__":
-                from fitentropy.mannequin_assets import all_presets
+    st.markdown("**模特图**")
+    _preview_l, _preview_c, _preview_r = st.columns([2.2, 1, 2.2])
+    with _preview_c:
+        st.image(
+            resolve_display_source(_profile_g, _profile_b),
+            caption=f"{_profile_g} · {_profile_b}",
+            width=200,
+        )
 
-                for g, b in all_presets():
-                    generate_mannequin_asset(g, b, force=True)
-                st.session_state["fashn_gen_ok"] = "已生成全部 6 套 FASHN 模特图。"
-            else:
-                g, b = _gen_target
-                generate_mannequin_asset(g, b, force=True)
-                st.session_state["fashn_gen_ok"] = f"已生成 {g} · {b} 的 FASHN 模特图。"
-    except Exception as exc:
-        st.session_state["fashn_gen_error"] = str(exc)
-    st.rerun()
+    _tryon_map = st.session_state.get("fashn_tryon_by_outfit") or {}
+    if "last_result" in st.session_state and _tryon_map:
+        _preview_url = _tryon_map.get(1) or next(iter(_tryon_map.values()), None)
+        if _preview_url:
+            st.success("虚拟试穿已生成")
+            _try_l, _try_c, _try_r = st.columns([2.2, 1, 2.2])
+            with _try_c:
+                st.image(
+                    _preview_url,
+                    caption="FASHN 试穿效果 · Look 01",
+                    width=200,
+                )
+    elif "last_result" in st.session_state:
+        st.success("搭配方案已生成，请查看下方 Look 卡片。")
 
-st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with st.form("entropy_form"):
     st.markdown(
@@ -216,27 +198,6 @@ with st.form("entropy_form"):
     with c2:
         budget = st.radio("Budget · 预算", config.BUDGET_OPTIONS, horizontal=True)
 
-    with st.expander(
-        "虚拟试穿（FASHN）",
-        expanded=fashn_configured(),
-    ):
-        if fashn_configured():
-            st.caption("已配置 FASHN · 模特按第 1 步性别/体型自动匹配；填商品图 URL 后勾选试穿。")
-        else:
-            st.caption("在 .env 设置 FASHN_API_KEY 后刷新页面即可启用。")
-        fashn_garment_url = st.text_input(
-            "商品图 URL（garment_image）",
-            value="",
-            placeholder="https://…",
-        )
-        fashn_run = st.checkbox(
-            "生成虚拟试穿效果图",
-            value=fashn_configured(),
-            disabled=not fashn_configured(),
-        )
-        if not fashn_configured():
-            st.caption("未配置 FASHN_API_KEY 时仅展示搭配与购买链接。")
-
     st.markdown("</div>", unsafe_allow_html=True)
     submitted = st.form_submit_button("Reduce Entropy →", type="primary", use_container_width=True)
 
@@ -267,20 +228,22 @@ if submitted:
                         style_preferences=style_signal,
                     )
                 )
-                st.session_state.pop("fashn_tryon_urls", None)
+                st.session_state.pop("fashn_tryon_by_outfit", None)
                 st.session_state.pop("fashn_tryon_error", None)
-                if fashn_run and fashn_configured() and fashn_garment_url.strip():
-                    try:
-                        from fitentropy.fashn_client import run_tryon_v16
-
-                        model_img, _src_label = model_image_for_tryon(_mg, _mb)
-                        st.session_state["last_mannequin_label"] = _src_label
-                        st.session_state["fashn_tryon_urls"] = run_tryon_v16(
-                            model_img,
-                            fashn_garment_url.strip(),
-                        )
-                    except Exception as exc:
-                        st.session_state["fashn_tryon_error"] = str(exc)
+                outfits_list = payload.get("outfits") or []
+                if (
+                    not demo_mode
+                    and fashn_configured()
+                    and config.brightdata_configured()
+                    and outfits_list
+                ):
+                    with st.spinner("FASHN 虚拟试穿（自动抓取商品图）…"):
+                        try:
+                            st.session_state["fashn_tryon_by_outfit"] = auto_tryon_for_outfits(
+                                _mg, _mb, outfits_list
+                            )
+                        except Exception as exc:
+                            st.session_state["fashn_tryon_error"] = str(exc)
             except Exception as exc:
                 st.error(f"Pipeline failed: {exc}")
                 st.stop()
@@ -297,7 +260,7 @@ if "last_result" in st.session_state:
 
     _mg = st.session_state.get("last_mannequin_gender", st.session_state.get("ft_gender", "女"))
     _mb = st.session_state.get("last_mannequin_body", st.session_state.get("ft_body_type", "标准"))
-    _tryon_urls = st.session_state.get("fashn_tryon_urls") or []
+    _tryon_by_outfit = st.session_state.get("fashn_tryon_by_outfit") or {}
     _base_img = resolve_display_source(_mg, _mb)
 
     st.markdown(
@@ -323,7 +286,7 @@ if "last_result" in st.session_state:
         missing = outfit.get("missing_labels") or []
         offers = outfit.get("offers") or []
         tag = missing[0] if missing else _occ
-        img_src = _tryon_urls[(idx - 1) % len(_tryon_urls)] if _tryon_urls else _base_img
+        img_src = _tryon_by_outfit.get(idx) or _base_img
         card_body = missing_items_html(offers, missing)
         with _cols[idx - 1]:
             st.image(img_src, use_container_width=True)

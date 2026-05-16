@@ -53,6 +53,22 @@ def _enrich_label(label: str, color_terms: List[str] | None = None) -> MissingIt
     try:
         html = scrape_html(url)
         product = first_product_for_query(html, brand=brand, search_url=url)
+        if not product.image_url and product.url and config.brightdata_configured():
+            try:
+                detail_html = scrape_html(product.url)
+                detail = first_product_for_query(
+                    detail_html, brand=brand, search_url=product.url
+                )
+                if detail.image_url:
+                    product = ProductLink(
+                        brand=brand,
+                        name=detail.name or product.name,
+                        price_display=detail.price_display or product.price_display,
+                        url=detail.url or product.url,
+                        image_url=detail.image_url,
+                    )
+            except Exception as exc:
+                logger.debug("Product detail scrape failed for %s: %s", product.url, exc)
     except Exception as exc:
         logger.debug("Retail scrape failed for %s: %s", url, exc)
         product = ProductLink(
@@ -60,6 +76,7 @@ def _enrich_label(label: str, color_terms: List[str] | None = None) -> MissingIt
             name=f"{brand} — {label}",
             price_display="",
             url=url,
+            image_url="",
         )
     return MissingItemOffer(label=label, product=product)
 

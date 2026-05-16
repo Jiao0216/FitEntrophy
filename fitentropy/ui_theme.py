@@ -126,6 +126,17 @@ label, [data-testid="stWidgetLabel"] p { color: #e2e8f0 !important; }
 motion[data-testid="stImage"] img {
   border-radius: 16px 16px 0 0 !important; border: 1px solid rgba(139, 92, 246, 0.2) !important;
 }
+.ft-profile-preview [data-testid="stImage"] {
+  max-width: 200px !important;
+  margin: 0 auto !important;
+}
+.ft-profile-preview [data-testid="stImage"] img {
+  max-width: 200px !important;
+  width: 200px !important;
+  margin: 0 auto !important;
+  display: block !important;
+  border-radius: 12px !important;
+}
 """.replace("motion[data-testid", "div[data-testid")
 
 BODY_TYPE_EN = {"高挑": ("Tall / Slim", "↗"), "标准": ("Standard", "◎"), "丰满": ("Fuller", "●")}
@@ -140,25 +151,19 @@ def inject_theme() -> None:
     st.markdown(f"<style>{THEME_CSS}</style>", unsafe_allow_html=True)
 
 
-def render_nav(active: str = "dashboard") -> None:
+def render_nav() -> None:
+    """Single-page demo: logo only."""
     import streamlit as st
 
-    links = [
-        ("dashboard", "Dashboard"),
-        ("wardrobe", "Wardrobe"),
-        ("outfits", "Outfits"),
-        ("profile", "Profile"),
-    ]
-    link_html = "".join(
-        f'<a class="{"active" if k == active else ""}">{html.escape(label)}</a>'
-        for k, label in links
-    )
     st.markdown(
-        f'<header class="ft-nav"><motion class="ft-logo"><motion class="ft-logo-icon">F</motion>'
-        f'<span class="ft-logo-text">FitEntropy</span></motion>'
-        f'<nav class="ft-nav-links">{link_html}</nav></header>'.replace("<motion", "<div").replace(
-            "</motion>", "</div>"
-        ),
+        """
+<header class="ft-nav">
+  <div class="ft-logo">
+    <div class="ft-logo-icon">F</div>
+    <span class="ft-logo-text">FitEntropy</span>
+  </div>
+</header>
+""",
         unsafe_allow_html=True,
     )
 
